@@ -87,24 +87,12 @@ for index ,row in df.iterrows():
         if row[1] not in listOfUsedDataTypes:
             listOfUsedDataTypes.append(row[1])
             createDummyTable = createDummyTable + f'Dummy{row[1]} {row[1]} null'
-
-        #if row[1] == 'nvarchar':
         createViewQuery = createViewQuery + f'{addSpacing(row[0],row[1],dummyTableName,maxLen)}\n'
-            #createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN TRIM([{row[0]}]) IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE TRIM([{row[0]}]) END\n"
-        #else:
-            #createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN [{row[0]}] IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE [{row[0]}] END\n"
     else:
-
         if row[1] not in listOfUsedDataTypes:
             listOfUsedDataTypes.append(row[1])
             createDummyTable = createDummyTable + f'Dummy{row[1]} {row[1]} null,'
-
         createViewQuery = createViewQuery + f'{addSpacing(row[0],row[1],dummyTableName,maxLen)},'
-        #if row[1] == 'nvarchar':
-            #createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN TRIM([{row[0]}]) IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE TRIM([{row[0]}]) END,"
-        #else:
-            #createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN [{row[0]}] IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE [{row[0]}] END,"
-    #print('just printed row')
 
 createDummyTable = createDummyTable + ')'
 createViewQuery = createViewQuery + f'FROM {fullTableName})'
