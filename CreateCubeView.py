@@ -28,7 +28,9 @@ def createColumnName(columnName,maxStringLen):
     setOfCapitalLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     setOfIndexesOfCapitalLetters = []
 
+    #We only add spacing between words for non surrogate keys. Surrogate key is identified by ending with 'Key'.
     if columnName[-3:] != 'Key':
+        #Find location of all capital letters in the string.
         i = 0
         for item in columnName:
             if item in setOfCapitalLetters:
@@ -38,24 +40,27 @@ def createColumnName(columnName,maxStringLen):
         amountOfLoops = 0
         maxLoops = len(setOfIndexesOfCapitalLetters)
 
+        #Add spacing based on capital letter, I.E StringValueOne = String Value One
         for index in setOfIndexesOfCapitalLetters:
             amountOfLoops = amountOfLoops + 1
             finalString = f'{finalString} {columnName[previousIndex:index]}'
             if amountOfLoops == maxLoops:
                 finalString = f'{finalString} {columnName[index:len(columnName)]}'
             previousIndex = index
-
         finalString = finalString.strip()
         finalString = f'[{finalString}]'
         i = 0
 
+        #Add padding to make all strings the same length, makes the SQL code easier to read and adhears to our coding standards.
         maxStringLen = maxStringLen - len(finalString)
         while i <= maxStringLen:
             finalString = finalString + ' '
             i = i + 1
         finalString = f'     {finalString}'
         return finalString
+
     else:
+        #Add padding to make all strings the same length, makes the SQL code easier to read and adhears to our coding standards.
         finalString = columnName
         finalString = f'[{finalString}]'
         i = 0
@@ -103,32 +108,16 @@ for index ,row in df.iterrows():
 maxLen = maxLen + 10
 
 for index ,row in df.iterrows():
-    i = len(row[0])
-    stringValue = f'[{row[0]}]'
-    while i < maxLen:
-        stringValue = ' ' + stringValue
-        i = i + 1
-        if i == maxLen:
-            stringValue = stringValue + '|'
-            #print(stringValue)
-
-
     if 'Alternative' not in row[0]:
         if index == dfMaxValue:
-            #if row[0][-3:] != 'Key':
             createViewQuery = f'{createViewQuery}{createColumnName(row[0],maxLen)} = [{row[0]}]\n'
-            #else:
-                #createViewQuery = f' \t\t{createViewQuery}{(row[0])} = [{row[0]}]\n'
         else:
-            #if row[0][-3:] != 'Key':
             createViewQuery = f'{createViewQuery}{createColumnName(row[0],maxLen)} = [{row[0]}],\n'
-            #else:
-                #createViewQuery = f' \t\t{createViewQuery}[{(row[0])}] = [{row[0]}],\n'
 
 
 createViewQuery = createViewQuery + f'FROM {fullTableName})'
 
-print(createViewQuery)
+#print(createViewQuery)
 
 SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS [dbo].v{tableName}")
 SQL_Server.executeCustomQuery(createViewQuery)
