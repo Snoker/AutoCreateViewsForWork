@@ -22,7 +22,9 @@ database='Fortnox'
 #####################################################################
 
 
-def addSpacing(columnName,dataType,dummyTableName,maxStringLen):
+def addSpacing(columnName,dataType,dummyTableName,maxStringLen,maxDataLen):
+
+    #First instance of column name used, before =
     i = 0
     columnName = f'[{columnName}]'
     firstColumnName = columnName
@@ -31,11 +33,40 @@ def addSpacing(columnName,dataType,dummyTableName,maxStringLen):
         firstColumnName = firstColumnName + ' '
         i = i + 1
 
+    #Building the first section of the case statement, isnull part before subselect
+    InitialPartCaseStatement = columnName
     if dataType == 'nvarchar':
-        finalstring = f"\n\t\t {firstColumnName} = CASE WHEN TRIM({columnName}) IS NULL THEN (SELECT Dummy{dataType} FROM {dummyTableName}) ELSE TRIM({columnName}) END"
+        InitialPartCaseStatement = 'CASE WHEN TRIM(' + InitialPartCaseStatement + ') IS NULL THEN'
     else:
-        finalstring = f"\n\t\t {firstColumnName} = CASE WHEN {columnName} IS NULL THEN (SELECT Dummy{dataType} FROM {dummyTableName}) ELSE {columnName} END"
+        InitialPartCaseStatement = 'CASE WHEN ' + InitialPartCaseStatement + ' IS NULL THEN      '
+    i = 0
+    while i <= maxStringLen:
+        InitialPartCaseStatement = InitialPartCaseStatement + ' '
+        i = i + 1
+
+    #Building the subselect section of the query.
+    subSelect = f'(SELECT Dummy{dataType} FROM {dummyTableName})'
+    i = 0
+    maxDataLen = maxDataLen - len(dataType)
+    while i <= maxDataLen:
+        subSelect = subSelect + ' '
+        i = i + 1
+
+
+    #Building the else section of the query.
+    if dataType == 'nvarchar':
+        elseSection = f'ELSE TRIM({columnName})'
+    else:
+        elseSection = f'ELSE {columnName}      '
+    i = 0
+    while i <= maxStringLen:
+        elseSection = elseSection + ' '
+        i = i + 1
+
+    #Return final query string
+    finalstring = f"\n\t\t {firstColumnName} = {InitialPartCaseStatement} {subSelect} {elseSection} END"
     return finalstring
+
 
 
 dummyTableName = 'REPLACETHISWITHDUMMYVIEW'
@@ -73,13 +104,19 @@ CREATE TABLE dbo.{dummyTableName}
 
 dfMaxValue = len(df.index) -1
 listOfUsedDataTypes = []
-maxLen = 0
 
+maxColLen = 0
 for index ,row in df.iterrows():
-    if len(row[0]) > maxLen:
-        maxLen = len(row[0])
-maxLen = maxLen + 10
-#print(f'maxLen is {maxLen}')
+    if len(row[0]) > maxColLen:
+        maxColLen = len(row[0])
+maxColLen = maxColLen + 10
+#print(f'maxColLen is {maxColLen}')
+
+maxDataLen = 0
+for index ,row in df.iterrows():
+    if len(row[0]) > maxDataLen:
+        maxDataLen = len(row[0])
+maxDataLen = maxDataLen
 
 for index ,row in df.iterrows():
 
@@ -87,12 +124,12 @@ for index ,row in df.iterrows():
         if row[1] not in listOfUsedDataTypes:
             listOfUsedDataTypes.append(row[1])
             createDummyTable = createDummyTable + f'Dummy{row[1]} {row[1]} null'
-        createViewQuery = createViewQuery + f'{addSpacing(row[0],row[1],dummyTableName,maxLen)}\n'
+        createViewQuery = createViewQuery + f'{addSpacing(row[0],row[1],dummyTableName,maxColLen,maxDataLen)}\n'
     else:
         if row[1] not in listOfUsedDataTypes:
             listOfUsedDataTypes.append(row[1])
             createDummyTable = createDummyTable + f'Dummy{row[1]} {row[1]} null,'
-        createViewQuery = createViewQuery + f'{addSpacing(row[0],row[1],dummyTableName,maxLen)},'
+        createViewQuery = createViewQuery + f'{addSpacing(row[0],row[1],dummyTableName,maxColLen,maxDataLen)},'
 
 createDummyTable = createDummyTable + ')'
 createViewQuery = createViewQuery + f'FROM {fullTableName})'
