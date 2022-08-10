@@ -21,6 +21,23 @@ database='Fortnox'
 #
 #####################################################################
 
+
+def addSpacing(columnName,dataType,dummyTableName,maxStringLen):
+    i = 0
+    columnName = f'[{columnName}]'
+    firstColumnName = columnName
+    maxStringLen = maxStringLen - len(columnName)
+    while i <= maxStringLen:
+        firstColumnName = firstColumnName + ' '
+        i = i + 1
+
+    if dataType == 'nvarchar':
+        finalstring = f"\n\t\t {firstColumnName} = CASE WHEN TRIM({columnName}) IS NULL THEN (SELECT Dummy{dataType} FROM {dummyTableName}) ELSE TRIM({columnName}) END"
+    else:
+        finalstring = f"\n\t\t {firstColumnName} = CASE WHEN {columnName} IS NULL THEN (SELECT Dummy{dataType} FROM {dummyTableName}) ELSE {columnName} END"
+    return finalstring
+
+
 dummyTableName = 'REPLACETHISWITHDUMMYVIEW'
 tableName = fullTableName[fullTableName.index('.')+1:len(fullTableName)]
 
@@ -56,6 +73,13 @@ CREATE TABLE dbo.{dummyTableName}
 
 dfMaxValue = len(df.index) -1
 listOfUsedDataTypes = []
+maxLen = 0
+
+for index ,row in df.iterrows():
+    if len(row[0]) > maxLen:
+        maxLen = len(row[0])
+maxLen = maxLen + 10
+print(f'maxLen is {maxLen}')
 
 for index ,row in df.iterrows():
 
@@ -64,24 +88,27 @@ for index ,row in df.iterrows():
             listOfUsedDataTypes.append(row[1])
             createDummyTable = createDummyTable + f'Dummy{row[1]} {row[1]} null'
 
-        if row[1] == 'nvarchar':
-            createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN TRIM([{row[0]}]) IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE TRIM([{row[0]}]) END\n"
-        else:
-            createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN [{row[0]}] IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE [{row[0]}] END\n"
+        #if row[1] == 'nvarchar':
+        createViewQuery = createViewQuery + f'{addSpacing(row[0],row[1],dummyTableName,maxLen)}\n'
+            #createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN TRIM([{row[0]}]) IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE TRIM([{row[0]}]) END\n"
+        #else:
+            #createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN [{row[0]}] IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE [{row[0]}] END\n"
     else:
 
         if row[1] not in listOfUsedDataTypes:
             listOfUsedDataTypes.append(row[1])
             createDummyTable = createDummyTable + f'Dummy{row[1]} {row[1]} null,'
 
-        if row[1] == 'nvarchar':
-            createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN TRIM([{row[0]}]) IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE TRIM([{row[0]}]) END,"
-        else:
-            createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN [{row[0]}] IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE [{row[0]}] END,"
+        createViewQuery = createViewQuery + f'{addSpacing(row[0],row[1],dummyTableName,maxLen)},'
+        #if row[1] == 'nvarchar':
+            #createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN TRIM([{row[0]}]) IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE TRIM([{row[0]}]) END,"
+        #else:
+            #createViewQuery = createViewQuery + f"\n\t\t [{row[0]}] = CASE WHEN [{row[0]}] IS NULL THEN (SELECT Dummy{row[1]} FROM {dummyTableName}) ELSE [{row[0]}] END,"
     #print('just printed row')
 
 createDummyTable = createDummyTable + ')'
 createViewQuery = createViewQuery + f'FROM {fullTableName})'
+print(createViewQuery)
 SQL_Server.executeCustomQuery(createDummyTable)
 SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS [dbo].v{tableName}")
 SQL_Server.executeCustomQuery(createViewQuery)
