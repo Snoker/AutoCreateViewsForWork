@@ -7,7 +7,9 @@ import SQLAlchClass
 #       Set initial variables. This must be done else the script can not run.
 #
 #####################################################################
-fullTableName = 'MirrorFortnox.Account'
+#fullTableName = 'MirrorFortnox.Account'
+fullTableName = input('Please provide the source table name in the follwing format: schema.tableName (mirror.account): ')
+targetSchema = input('Please provide the target schema that the view is to be created in (it must exist in the DB): ')
 driver='SQL Server Native Client 11.0'
 server='localhost'
 #instance='mssqlserver01'
@@ -93,7 +95,7 @@ df = pd.DataFrame(response)
 
 
 createViewQuery = f"""
-CREATE VIEW [dbo].v{tableName} AS (
+CREATE VIEW {targetSchema}.v{tableName} AS (
     SELECT
 """
 createDummyTable =f"""
@@ -133,8 +135,11 @@ for index ,row in df.iterrows():
 
 createDummyTable = createDummyTable + ')'
 createViewQuery = createViewQuery + f'FROM {fullTableName})'
-#print(createViewQuery)
+print(f'''
+The following view has now been created:
+{createViewQuery}
+''')
 SQL_Server.executeCustomQuery(createDummyTable)
-SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS [dbo].v{tableName}")
+SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.v{tableName}")
 SQL_Server.executeCustomQuery(createViewQuery)
 SQL_Server.executeCustomQuery(f"DROP TABLE dbo.{dummyTableName}")
