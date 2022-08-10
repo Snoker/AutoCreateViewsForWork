@@ -79,7 +79,7 @@ for index ,row in df.iterrows():
     if len(row[0]) > maxLen:
         maxLen = len(row[0])
 maxLen = maxLen + 10
-print(f'maxLen is {maxLen}')
+#print(f'maxLen is {maxLen}')
 
 for index ,row in df.iterrows():
 
@@ -96,7 +96,7 @@ for index ,row in df.iterrows():
 
 createDummyTable = createDummyTable + ')'
 createViewQuery = createViewQuery + f'FROM {fullTableName})'
-print(createViewQuery)
+#print(createViewQuery)
 SQL_Server.executeCustomQuery(createDummyTable)
 SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS [dbo].v{tableName}")
 SQL_Server.executeCustomQuery(createViewQuery)

@@ -43,9 +43,16 @@ def createColumnName(columnName,maxStringLen):
         #Add spacing based on capital letter, I.E StringValueOne = String Value One
         for index in setOfIndexesOfCapitalLetters:
             amountOfLoops = amountOfLoops + 1
-            finalString = f'{finalString} {columnName[previousIndex:index]}'
+            if index - previousIndex == 1:
+                finalString = f'{finalString}{columnName[previousIndex:index]}'
+            else:
+                finalString = f'{finalString} {columnName[previousIndex:index]}'
+
             if amountOfLoops == maxLoops:
-                finalString = f'{finalString} {columnName[index:len(columnName)]}'
+                if index - previousIndex == 1:
+                    finalString = f'{finalString}{columnName[index:len(columnName)]}'
+                else:
+                    finalString = f'{finalString} {columnName[index:len(columnName)]}'
             previousIndex = index
         finalString = finalString.strip()
         finalString = f'[{finalString}]'
