@@ -9,15 +9,16 @@ import re
 #
 #####################################################################
 
-#fullTableName = 'SpryFortnox.FactInvoice'
-fullTableName = input('Please provide the source table name in the follwing format: schema.tableName (DWH.DimAccount): ')
-targetSchema = input('Please provide the target schema that the view is to be created in (it must exist in the DB): ')
+fullTableName = 'DMWarehouse.FactWarehouseOrderFlow'
+#fullTableName = input('Please provide the source table name in the follwing format: schema.tableName (mirror.account): ')
+targetSchema = 'CubeWarehouse'
+#targetSchema = input('Please provide the target schema that the view is to be created in (it must exist in the DB): ')
 driver='SQL Server Native Client 11.0'
 server='localhost'
 #instance='mssqlserver01'
 uid='sqluser'
 pwd='sqluser'
-database='Fortnox'
+database='Quinyx'
 
 #####################################################################
 #
@@ -117,7 +118,7 @@ for index ,row in df.iterrows():
 maxLen = maxLen + 10
 
 for index ,row in df.iterrows():
-    if 'Alternative' not in row[0]:
+    if 'Alternate' not in row[0]:
         if index == dfMaxValue:
             createViewQuery = f'{createViewQuery}{createColumnName(row[0],maxLen)} = [{row[0]}]\n'
         else:
