@@ -7,16 +7,16 @@ import SQLAlchClass
 #       Set initial variables. This must be done else the script can not run.
 #
 #####################################################################
-fullTableName = 'DMWarehouse.DimBin'
+fullTableName = 'MirrorSpryFortnox.InvoiceRowJson'
 #fullTableName = input('Please provide the source table name in the follwing format: schema.tableName (mirror.account): ')
-targetSchema = 'CubeWarehouse'
+targetSchema = 'MirrorSpryFortnox'
 #targetSchema = input('Please provide the target schema that the view is to be created in (it must exist in the DB): ')
 driver='SQL Server Native Client 11.0'
 server='localhost'
 #instance='mssqlserver01'
 uid='sqluser'
 pwd='sqluser'
-database='Quinyx'
+database='democlient'
 
 #####################################################################
 #
@@ -134,7 +134,7 @@ CREATE TABLE dbo.{dummyTableName}
 
 setOfTrueFalseToBit =''
 convertTrueFalse = ''
-convertTrueFalse = input('Are there any columns that are true/false columns that should be converted to a bit (Yes/No): ')
+#convertTrueFalse = input('Are there any columns that are true/false columns that should be converted to a bit (Yes/No): ')
 if convertTrueFalse.lower() in ['yes','y','ye','ja','j']:
     for index, row in df.iterrows():
         print(f'{index}: {row[0]}')
@@ -143,7 +143,7 @@ setOfTrueFalseToBit = ',' + setOfTrueFalseToBit + ','
 
 setOfDateTimes = ''
 convertDateTimes = ''
-convertDateTimes = input('Are there any columns that are DateTime columns that should be converted to a DateTime (Yes/No): ')
+#convertDateTimes = input('Are there any columns that are DateTime columns that should be converted to a DateTime (Yes/No): ')
 if convertDateTimes.lower() in ['yes','y','ye','ja','j']:
     createDummyTable = createDummyTable + f'Dummydatetime datetime null,\n'
     for index, row in df.iterrows():
@@ -155,7 +155,7 @@ setOfDateTimes = ',' + setOfDateTimes + ','
 
 setOfDates = ''
 convertDates = ''
-convertDates = input('Are there any columns that are Date columns that should be converted to a Date (Yes/No): ')
+#convertDates = input('Are there any columns that are Date columns that should be converted to a Date (Yes/No): ')
 if convertDates.lower() in ['yes','y','ye','ja','j']:
     createDummyTable = createDummyTable + f'Dummydate date null,\n'
     for index, row in df.iterrows() and str(f',{index},') not in setOfTrueFalseToBit and str(f',{index},') not in setOfDateTimes:
@@ -217,8 +217,8 @@ print(f'''
 The following view has now been created:
 {createViewQuery}
 ''')
-#SQL_Server.executeCustomQuery(f"DROP TABLE IF EXISTS {dummyTableName}")
-#SQL_Server.executeCustomQuery(createDummyTable)
-#SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.v{tableName}")
-#SQL_Server.executeCustomQuery(createViewQuery)
-#SQL_Server.executeCustomQuery(f"DROP TABLE {dummyTableName}")
+SQL_Server.executeCustomQuery(f"DROP TABLE IF EXISTS {dummyTableName}")
+SQL_Server.executeCustomQuery(createDummyTable)
+SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.v{tableName}")
+SQL_Server.executeCustomQuery(createViewQuery)
+SQL_Server.executeCustomQuery(f"DROP TABLE {dummyTableName}")

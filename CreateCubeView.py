@@ -9,16 +9,16 @@ import re
 #
 #####################################################################
 
-fullTableName = 'DMWarehouse.FactWarehouseOrderFlow'
+fullTableName = 'SpryFortnox.DimInvoiceType'
 #fullTableName = input('Please provide the source table name in the follwing format: schema.tableName (mirror.account): ')
-targetSchema = 'CubeWarehouse'
+targetSchema = 'CubeSpryFortnox'
 #targetSchema = input('Please provide the target schema that the view is to be created in (it must exist in the DB): ')
 driver='SQL Server Native Client 11.0'
 server='localhost'
 #instance='mssqlserver01'
 uid='sqluser'
 pwd='sqluser'
-database='Quinyx'
+database='democlient'
 
 #####################################################################
 #
@@ -101,7 +101,6 @@ columnInformation =f"""
 """
 response = SQL_Server.executeCustomSelect(columnInformation)
 df = pd.DataFrame(response)
-
 
 
 createViewQuery = f"""
