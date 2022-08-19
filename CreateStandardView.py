@@ -38,7 +38,7 @@ def addSpacingBeg(fullString,stringShortener,maxLen):
     finalString = fullString
     maxLen = maxLen - len(stringShortener)
     while i <= maxLen:
-        finalString = finalString + ' '
+        finalString = ' ' + finalString 
         i = i + 1
     return finalString
 

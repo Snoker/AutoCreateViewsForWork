@@ -9,16 +9,16 @@ import re
 #
 #####################################################################
 
-fullTableName = 'SpryFortnox.DimInvoiceType'
+fullTableName = 'Mirror.AccountGrouping'
 #fullTableName = input('Please provide the source table name in the follwing format: schema.tableName (mirror.account): ')
-targetSchema = 'CubeSpryFortnox'
+targetSchema = 'Mirror'
 #targetSchema = input('Please provide the target schema that the view is to be created in (it must exist in the DB): ')
 driver='SQL Server Native Client 11.0'
 server='localhost'
 #instance='mssqlserver01'
 uid='sqluser'
 pwd='sqluser'
-database='democlient'
+database='HampusLek'
 
 #####################################################################
 #
