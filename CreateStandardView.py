@@ -7,7 +7,7 @@ import SQLAlchClass
 #       Set initial variables. This must be done else the script can not run.
 #
 #####################################################################
-fullTableName = 'Mirror.AccountGrouping'
+fullTableName = 'Mirror.Test'
 #fullTableName = input('Please provide the source table name in the follwing format: schema.tableName (mirror.account): ')
 targetSchema = 'Mirror'
 #targetSchema = input('Please provide the target schema that the view is to be created in (it must exist in the DB): ')
@@ -38,11 +38,11 @@ def addSpacingBeg(fullString,stringShortener,maxLen):
     finalString = fullString
     maxLen = maxLen - len(stringShortener)
     while i <= maxLen:
-        finalString = ' ' + finalString 
+        finalString = ' ' + finalString
         i = i + 1
     return finalString
 
-def standardColumn(columnName,dataType,dummyTableName,maxStringLen,maxDataLen):
+def standardColumn(columnName,dataType,dummyTableName,maxStringLen,maxDataLen,colStringLen,colPrecision,colScale):
     #First instance of column name used, before =
     i = 0
     columnName = f'[{columnName}]'
@@ -70,8 +70,14 @@ def standardColumn(columnName,dataType,dummyTableName,maxStringLen,maxDataLen):
     elseSection = addSpacingEnd(elseSection,'',maxStringLen)
 
     #Return final query string
-    finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement} {subSelect} {elseSection} END as NVARCHAR(500))"
-    print(finalstring)
+    if dataType == 'nvarchar':
+        finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement} {subSelect} {elseSection} END as {dataType}({colStringLen}))"
+    elif dataType == 'decimal':
+        finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement} {subSelect} {elseSection} END as {dataType}({colPrecision},{colScale}))"
+    else:
+        finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement} {subSelect} {elseSection} END as {dataType})"
+
+    #print(finalstring)
     return finalstring
 
 def convertTrueFalseToBit(columnName,maxDataLen):
@@ -107,7 +113,7 @@ SQL_Server = SQLAlchClass.SQLServer(driver,server,uid,pwd,database)
 
 columnInformation =f"""
     select
-    	c.name,typ.name
+    	c.name,typ.name,c.max_length/2 as StringLen, c.precision, c.scale
     FROM sys.tables t
     INNER JOIN sys.schemas s
     	ON t.schema_id = s.schema_id
@@ -134,7 +140,7 @@ CREATE TABLE dbo.{dummyTableName}
 
 setOfTrueFalseToBit =''
 convertTrueFalse = ''
-convertTrueFalse = input('Are there any columns that are true/false columns that should be converted to a bit (Yes/No): ')
+#convertTrueFalse = input('Are there any columns that are true/false columns that should be converted to a bit (Yes/No): ')
 if convertTrueFalse.lower() in ['yes','y','ye','ja','j']:
     for index, row in df.iterrows():
         print(f'{index}: {row[0]}')
@@ -195,7 +201,7 @@ for index ,row in df.iterrows():
         elif str(f',{index},') in setOfDates:
             createViewQuery = createViewQuery + f'\n{convertDate(row[0],dummyTableName,maxDataLen)}\n'
         else:
-            createViewQuery = createViewQuery + f'{standardColumn(row[0],row[1],dummyTableName,maxColLen,maxDataLen)}\n'
+            createViewQuery = createViewQuery + f'{standardColumn(row[0],row[1],dummyTableName,maxColLen,maxDataLen,row[2],row[3],row[4])}\n'
     else:
         if row[1] not in listOfUsedDataTypes:
             listOfUsedDataTypes.append(row[1])
@@ -208,7 +214,7 @@ for index ,row in df.iterrows():
         elif str(f',{index},') in setOfDates:
             createViewQuery = createViewQuery + f'\n{convertDate(row[0],dummyTableName,maxDataLen)},'
         else:
-            createViewQuery = createViewQuery + f'{standardColumn(row[0],row[1],dummyTableName,maxColLen,maxDataLen)},'
+            createViewQuery = createViewQuery + f'{standardColumn(row[0],row[1],dummyTableName,maxColLen,maxDataLen,row[2],row[3],row[4])},'
 
 createDummyTable = createDummyTable + ')'
 createViewQuery = createViewQuery + f'FROM {fullTableName})'
