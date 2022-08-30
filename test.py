@@ -7,7 +7,7 @@ import SQLAlchClass
 #       Set initial variables. This must be done else the script can not run.
 #
 #####################################################################
-fullTableName = 'Mirror.Test2'
+fullTableName = 'Mirror.test2'
 #fullTableName = input('Please provide the source table name in the follwing format: schema.tableName (mirror.account): ')
 targetSchema = 'Mirror'
 #targetSchema = input('Please provide the target schema that the view is to be created in (it must exist in the DB): ')
@@ -17,6 +17,7 @@ server='localhost'
 uid='sqluser'
 pwd='sqluser'
 database='HampusLek'
+
 
 #####################################################################
 #
@@ -198,6 +199,7 @@ precision = 0
 scale = 0
 columnStringLen = 0
 
+
 for index ,row in df.iterrows():
 
     if sourceIsAPI == True:
@@ -267,7 +269,9 @@ for index ,row in df.iterrows():
             """
             response = SQL_Server.executeCustomSelect(query)
             dfStringLen = pd.DataFrame(response)
-            columnStringLen = int(dfStringLen['StringLen'][0] * 1.5)
+            #print(dfStringLen)
+            if dfStringLen['StringLen'][0] != None:
+                columnStringLen = int(dfStringLen['StringLen'][0] * 1.5)
             dataType = 'nvarchar'
     else:
         dataType = row[1]
@@ -309,8 +313,8 @@ print(f'''
 The following view has now been created:
 {createViewQuery}
 ''')
-#SQL_Server.executeCustomQuery(f"DROP TABLE IF EXISTS {dummyTableName}")
-#SQL_Server.executeCustomQuery(createDummyTable)
-#SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.v{tableName}")
-#SQL_Server.executeCustomQuery(createViewQuery)
-#SQL_Server.executeCustomQuery(f"DROP TABLE {dummyTableName}")
+SQL_Server.executeCustomQuery(f"DROP TABLE IF EXISTS {dummyTableName}")
+SQL_Server.executeCustomQuery(createDummyTable)
+SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.v{tableName}")
+SQL_Server.executeCustomQuery(createViewQuery)
+SQL_Server.executeCustomQuery(f"DROP TABLE {dummyTableName}")

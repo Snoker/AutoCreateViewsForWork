@@ -7,16 +7,16 @@ import SQLAlchClass
 #       Set initial variables. This must be done else the script can not run.
 #
 #####################################################################
-fullTableName = 'Mirror.Test'
+fullTableName = 'dbo.accounts'
 #fullTableName = input('Please provide the source table name in the follwing format: schema.tableName (mirror.account): ')
-targetSchema = 'Mirror'
+targetSchema = 'MirrorSpryFortnox'
 #targetSchema = input('Please provide the target schema that the view is to be created in (it must exist in the DB): ')
 driver='SQL Server Native Client 11.0'
 server='localhost'
 #instance='mssqlserver01'
 uid='sqluser'
 pwd='sqluser'
-database='HampusLek'
+database='Fortnox'
 
 #####################################################################
 #
