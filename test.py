@@ -193,64 +193,64 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
     columnStringLen = 0
 
     for index ,row in df.iterrows():
-        if row[1] != 'nvarchar':
-            query =f"""
-                SELECT
-                	CASE
-                	WHEN
-                		0 IN
-                		(
-                			select
-                				ISNUMERIC([{row[0]}])
-                			from
-                				{sourceSchema}.{table}
-                		)
-                	THEN
-                		'False'
-                	ELSE
-                		'True'
-                	END as 'NumericCheck'
+
+        query =f"""
+            SELECT
+            	CASE
+            	WHEN
+            		0 IN
+            		(
+            			select
+            				ISNUMERIC([{row[0]}])
+            			from
+            				{sourceSchema}.{table}
+            		)
+            	THEN
+            		'False'
+            	ELSE
+            		'True'
+            	END as 'NumericCheck'
+        """
+        response = SQL_Server.executeCustomSelect(query)
+        dfNumeric = pd.DataFrame(response)
+        if dfNumeric[0][0] == 'True':
+            query = f"""
+            	SELECT
+            		COUNT(*) as 'AmountOfDecimalRows'
+            	FROM
+            	(
+            		SELECT
+            			CharIndexCol
+            		FROM
+            		(
+            			SELECT
+            				CHARINDEX('.',REPLACE([{row[0]}],',','.')) as 'CharIndexCol'
+            			FROM
+            				{sourceSchema}.{table}
+            		) CheckForDecimals
+            			WHERE CheckForDecimals.CharIndexCol != 0
+            	) FilteredQuery
             """
             response = SQL_Server.executeCustomSelect(query)
-            dfNumeric = pd.DataFrame(response)
-            if dfNumeric[0][0] == 'True':
+            dfDecimal = pd.DataFrame(response)
+            if dfDecimal[0][0] > 0:
+                dataType = 'decimal'
+                precision = 9
+                scale = 2
+            else:
                 query = f"""
                 	SELECT
-                		COUNT(*) as 'AmountOfDecimalRows'
-                	FROM
-                	(
-                		SELECT
-                			CharIndexCol
-                		FROM
-                		(
-                			SELECT
-                				CHARINDEX('.',REPLACE([{row[0]}],',','.')) as 'CharIndexCol'
-                			FROM
-                				{sourceSchema}.{table}
-                		) CheckForDecimals
-                			WHERE CheckForDecimals.CharIndexCol != 0
-                	) FilteredQuery
+                    	COUNT([{row[0]}]) as 'AmountOfNot0Or1Rows'
+                    FROM
+                    	{sourceSchema}.{table}
+                    WHERE [{row[0]}] NOT IN ('0','1')
                 """
                 response = SQL_Server.executeCustomSelect(query)
-                dfDecimal = pd.DataFrame(response)
-                if dfDecimal[0][0] > 0:
-                    dataType = 'decimal'
-                    precision = 9
-                    scale = 2
+                dfBool = pd.DataFrame(response)
+                if dfBool[0][0] == 0:
+                    dataType = 'bit'
                 else:
-                    query = f"""
-                    	SELECT
-                        	COUNT([{row[0]}]) as 'AmountOfNot0Or1Rows'
-                        FROM
-                        	{sourceSchema}.{table}
-                        WHERE [{row[0]}] NOT IN ('0','1')
-                    """
-                    response = SQL_Server.executeCustomSelect(query)
-                    dfBool = pd.DataFrame(response)
-                    if dfBool[0][0] == 0:
-                        dataType = 'bit'
-                    else:
-                        dataType = 'int'
+                    dataType = 'int'
         else:
             query = f"""
                 SELECT
