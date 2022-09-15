@@ -7,16 +7,14 @@ import SQLAlchClass
 #       Set initial variables. This must be done else the script can not run.
 #
 #####################################################################
-fullTableName = 'Mirror.test2'
-#fullTableName = input('Please provide the source table name in the follwing format: schema.tableName (mirror.account): ')
-targetSchema = 'Mirror'
-#targetSchema = input('Please provide the target schema that the view is to be created in (it must exist in the DB): ')
+sourceSchema = input('Please provide the source schema. ( Not including brackets ): ')
+targetSchema = input('Please provide the target schema. ( Not including brackets ): ')
 driver='SQL Server Native Client 11.0'
 server='localhost'
 #instance='mssqlserver01'
 uid='sqluser'
 pwd='sqluser'
-database='HampusLek'
+database='HampusTestZone'
 
 
 #####################################################################
@@ -43,7 +41,7 @@ def addSpacingBeg(fullString,stringShortener,maxLen):
         i = i + 1
     return finalString
 
-def standardColumn(columnName,dataType,dummyTableName,maxStringLen,maxDataLen,colStringLen,colPrecision,colScale):
+def standardColumn(columnName,dataType,dummyView,maxStringLen,maxDataLen,colStringLen,colPrecision,colScale):
     #First instance of column name used, before =
     i = 0
     columnName = f'[{columnName}]'
@@ -60,7 +58,7 @@ def standardColumn(columnName,dataType,dummyTableName,maxStringLen,maxDataLen,co
     InitialPartCaseStatement = addSpacingEnd(InitialPartCaseStatement,'',maxStringLen)
 
     #Building the subselect section of the query.
-    subSelect = f'(SELECT Dummy{dataType} FROM {dummyTableName})'
+    subSelect = f'(SELECT Dummy{dataType} FROM {dummyView})'
     subSelect = addSpacingEnd(subSelect,dataType,maxDataLen)
 
     #Building the else section of the query.
@@ -95,226 +93,223 @@ def convertTrueFalseToBit(columnName,maxDataLen):
                                                                 END as BIT)"""
     return(finalString)
 
-def convertDateTime(columnName,dummyTableName,maxDataLen):
+def convertDateTime(columnName,dummyView,maxDataLen):
     columnName = f'{columnName}'
     firstColumnName = addSpacingEnd(columnName,columnName,maxDataLen)
-    finalString = f"{firstColumnName} = CAST( CASE WHEN TRIM([{columnName}]) IS NULL THEN (SELECT DummyDateTime FROM {dummyTableName}) ELSE {columnName} END as DateTime)"
+    finalString = f"{firstColumnName} = CAST( CASE WHEN TRIM([{columnName}]) IS NULL THEN (SELECT DummyDateTime FROM {dummyView}) ELSE {columnName} END as DateTime)"
     return(finalString)
 
-def convertDate(columnName,dummyTableName,maxDataLen):
+def convertDate(columnName,dummyView,maxDataLen):
     columnName = f'{columnName}'
     firstColumnName = addSpacingEnd(columnName,columnName,maxDataLen)
-    finalString = f"{firstColumnName} = CAST( CASE WHEN TRIM([{columnName}]) IS NULL THEN (SELECT DummyDate FROM {dummyTableName}) ELSE {columnName} END as Date)"
+    finalString = f"{firstColumnName} = CAST( CASE WHEN TRIM([{columnName}]) IS NULL THEN (SELECT DummyDate FROM {dummyView}) ELSE {columnName} END as Date)"
     return(finalString)
 
-
-inputSourceIsAPI = input('Is the source an API? Yes/No: ')
-if inputSourceIsAPI.lower() in ['yes','y','ye','ja','j']:
-    sourceIsAPI = True
-else:
-    sourceIsAPI = False
-
-dummyTableName = 'REPLACETHISWITHDUMMYVIEW'
-tableName = fullTableName[fullTableName.index('.')+1:len(fullTableName)]
-
+#DB object.
 SQL_Server = SQLAlchClass.SQLServer(driver,server,uid,pwd,database)
 
-columnInformation =f"""
-    select
-    	c.name,typ.name,c.max_length/2 as StringLen, c.precision, c.scale
-    FROM sys.tables t
-    INNER JOIN sys.schemas s
-    	ON t.schema_id = s.schema_id
-    INNER JOIN sys.columns c
-    	ON c.object_id = t.object_id
-    	INNER JOIN sys.types typ
-    		ON c.system_type_id = typ.system_type_id
-    WHERE s.name + '.' + t.name= '{fullTableName}'
-    AND typ.name != 'sysname'
-"""
-response = SQL_Server.executeCustomSelect(columnInformation)
-df = pd.DataFrame(response)
-
-createViewQuery = f"""
-CREATE VIEW {targetSchema}.v{tableName} AS (
-    SELECT
-"""
-createDummyTable =f"""
-CREATE TABLE dbo.{dummyTableName}
-(
-
-"""
-
-
-setOfTrueFalseToBit =''
-convertTrueFalse = ''
-#convertTrueFalse = input('Are there any columns that are true/false columns that should be converted to a bit (Yes/No): ')
-if convertTrueFalse.lower() in ['yes','y','ye','ja','j']:
-    for index, row in df.iterrows():
-        print(f'{index}: {row[0]}')
-    setOfTrueFalseToBit = input('Please enter the corresponding numbers separated by a comma of the columns that should be converted (1,2,3,4): ')
-setOfTrueFalseToBit = ',' + setOfTrueFalseToBit + ','
-
-setOfDateTimes = ''
-convertDateTimes = ''
-#convertDateTimes = input('Are there any columns that are DateTime columns that should be converted to a DateTime (Yes/No): ')
-if convertDateTimes.lower() in ['yes','y','ye','ja','j']:
-    createDummyTable = createDummyTable + f'Dummydatetime datetime null,\n'
-    for index, row in df.iterrows():
-        if  str(f',{index},') not in setOfTrueFalseToBit:
-            print(f'{index}: {row[0]}')
-    setOfDateTimes = input('Please enter the corresponding numbers separated by a comma of the columns that should be converted (1,2,3,4): ')
-setOfDateTimes = ',' + setOfDateTimes + ','
-
-
-setOfDates = ''
-convertDates = ''
-#convertDates = input('Are there any columns that are Date columns that should be converted to a Date (Yes/No): ')
-if convertDates.lower() in ['yes','y','ye','ja','j']:
-    createDummyTable = createDummyTable + f'Dummydate date null,\n'
-    for index, row in df.iterrows() and str(f',{index},') not in setOfTrueFalseToBit and str(f',{index},') not in setOfDateTimes:
-        if  str(f',{index},') not in setOfTrueFalseToBit and  str(f',{index},') not in setOfDateTimes:
-            print(f'{index}: {row[0]}')
-    setOfDates = input('Please enter the corresponding numbers separated by a comma of the columns that should be converted (1,2,3,4): ')
-setOfDates = ',' + setOfDates + ','
-
-
-dfMaxValue = len(df.index) -1
+#"Global" variables
+dummyView = f'{sourceSchema}.vDummyValues'
 listOfUsedDataTypes = []
 
-maxColLen = 0
-for index ,row in df.iterrows():
-    if len(row[0]) > maxColLen:
-        maxColLen = len(row[0])
-maxColLen = maxColLen + 10
-#print(f'maxColLen is {maxColLen}')
+checkForView = f"""
+select
+       DISTINCT type_name(user_type_id) as data_type
+from sys.columns c
+join sys.views v
+     on v.object_id = c.object_id
+INNER JOIN sys.schemas s
+	ON v.schema_id = s.schema_id
+WHERE s.name + '.' + v.name = '{sourceSchema}.vDummyValues'
+"""
+response = SQL_Server.executeCustomSelect(checkForView)
+df_viewCheck = pd.DataFrame(response)
 
-maxDataLen = 0
-for index ,row in df.iterrows():
-    if len(row[0]) > maxDataLen:
-        maxDataLen = len(row[0])
-maxDataLen = maxDataLen
+if not df_viewCheck.empty:
+    maxIndex = len(df_viewCheck)
+    for index, row in df_viewCheck.iterrows():
+        dataType = row[0]
+        if index == maxIndex:
+            if dataType not in listOfUsedDataTypes:
+                listOfUsedDataTypes.append(dataType)
+        else:
+            if dataType not in listOfUsedDataTypes:
+                listOfUsedDataTypes.append(dataType)
 
-precision = 0
-scale = 0
-columnStringLen = 0
+schemaInformation = f"""
+select
+	[TableName]			= t.name
+FROM sys.tables t
+INNER JOIN sys.schemas s
+	ON t.schema_id = s.schema_id
+WHERE s.name = '{sourceSchema}'
+"""
+response = SQL_Server.executeCustomSelect(schemaInformation)
+df_SchemaTables = pd.DataFrame(response)
+
+for outerIndex,schemaRow in df_SchemaTables.iterrows():
+
+    table = schemaRow[0]
+    print(f'Creating view for {targetSchema}.{table}. ')
+
+    columnInformation =f"""
+        select
+        	c.name,typ.name,c.max_length/2 as StringLen, c.precision, c.scale
+        FROM sys.tables t
+        INNER JOIN sys.schemas s
+        	ON t.schema_id = s.schema_id
+        INNER JOIN sys.columns c
+        	ON c.object_id = t.object_id
+        	INNER JOIN sys.types typ
+        		ON c.system_type_id = typ.system_type_id
+        WHERE s.name + '.' + t.name= '{sourceSchema}.{table}'
+        AND typ.name != 'sysname'
+    """
+    response = SQL_Server.executeCustomSelect(columnInformation)
+    df = pd.DataFrame(response)
+
+    createViewQuery = f"""
+    CREATE VIEW {targetSchema}.v{table} AS (
+        SELECT
+    """
 
 
-for index ,row in df.iterrows():
+    dfMaxValue = len(df.index) -1
 
-    if sourceIsAPI == True:
-        query =f"""
-            SELECT
-            	CASE
-            	WHEN
-            		0 IN
-            		(
-            			select
-            				ISNUMERIC([{row[0]}])
-            			from
-            				{fullTableName}
-            		)
-            	THEN
-            		'False'
-            	ELSE
-            		'True'
-            	END as 'NumericCheck'
-        """
-        response = SQL_Server.executeCustomSelect(query)
-        dfNumeric = pd.DataFrame(response)
-        if dfNumeric['NumericCheck'][0] == 'True':
-            query = f"""
-            	SELECT
-            		COUNT(*) as 'AmountOfDecimalRows'
-            	FROM
-            	(
-            		SELECT
-            			CharIndexCol
-            		FROM
-            		(
-            			SELECT
-            				CHARINDEX('.',REPLACE([{row[0]}],',','.')) as 'CharIndexCol'
-            			FROM
-            				{fullTableName}
-            		) CheckForDecimals
-            			WHERE CheckForDecimals.CharIndexCol != 0
-            	) FilteredQuery
+    maxColLen = 0
+    for index ,row in df.iterrows():
+        if len(row[0]) > maxColLen:
+            maxColLen = len(row[0])
+    maxColLen = maxColLen + 10
+
+    maxDataLen = 0
+    for index ,row in df.iterrows():
+        if len(row[0]) > maxDataLen:
+            maxDataLen = len(row[0])
+    maxDataLen = maxDataLen
+
+    precision = 0
+    scale = 0
+    columnStringLen = 0
+
+    for index ,row in df.iterrows():
+        if row[1] != 'nvarchar':
+            query =f"""
+                SELECT
+                	CASE
+                	WHEN
+                		0 IN
+                		(
+                			select
+                				ISNUMERIC([{row[0]}])
+                			from
+                				{sourceSchema}.{table}
+                		)
+                	THEN
+                		'False'
+                	ELSE
+                		'True'
+                	END as 'NumericCheck'
             """
             response = SQL_Server.executeCustomSelect(query)
-            dfDecimal = pd.DataFrame(response)
-            if dfDecimal['AmountOfDecimalRows'][0] > 0:
-                dataType = 'decimal'
-                precision = 9
-                scale = 2
-            else:
+            dfNumeric = pd.DataFrame(response)
+            if dfNumeric[0][0] == 'True':
                 query = f"""
                 	SELECT
-                    	COUNT([{row[0]}]) as 'AmountOfNot0Or1Rows'
-                    FROM
-                    	{fullTableName}
-                    WHERE [{row[0]}] NOT IN ('0','1')
+                		COUNT(*) as 'AmountOfDecimalRows'
+                	FROM
+                	(
+                		SELECT
+                			CharIndexCol
+                		FROM
+                		(
+                			SELECT
+                				CHARINDEX('.',REPLACE([{row[0]}],',','.')) as 'CharIndexCol'
+                			FROM
+                				{sourceSchema}.{table}
+                		) CheckForDecimals
+                			WHERE CheckForDecimals.CharIndexCol != 0
+                	) FilteredQuery
                 """
                 response = SQL_Server.executeCustomSelect(query)
-                dfBool = pd.DataFrame(response)
-                if dfBool['AmountOfNot0Or1Rows'][0] == 0:
-                    dataType = 'bit'
+                dfDecimal = pd.DataFrame(response)
+                if dfDecimal[0][0] > 0:
+                    dataType = 'decimal'
+                    precision = 9
+                    scale = 2
                 else:
-                    dataType = 'int'
+                    query = f"""
+                    	SELECT
+                        	COUNT([{row[0]}]) as 'AmountOfNot0Or1Rows'
+                        FROM
+                        	{sourceSchema}.{table}
+                        WHERE [{row[0]}] NOT IN ('0','1')
+                    """
+                    response = SQL_Server.executeCustomSelect(query)
+                    dfBool = pd.DataFrame(response)
+                    if dfBool[0][0] == 0:
+                        dataType = 'bit'
+                    else:
+                        dataType = 'int'
         else:
             query = f"""
                 SELECT
                 	MAX(LEN([{row[0]}])) as 'StringLen'
                 FROM
-                	{fullTableName}
+                	{sourceSchema}.{table}
             """
             response = SQL_Server.executeCustomSelect(query)
             dfStringLen = pd.DataFrame(response)
-            #print(dfStringLen)
-            if dfStringLen['StringLen'][0] != None:
-                columnStringLen = int(dfStringLen['StringLen'][0] * 1.5)
-            dataType = 'nvarchar'
-    else:
-        dataType = row[1]
-        columnStringLen = row[2]
-        precision = row[3]
-        scale = row[4]
+            if dfStringLen[0][0] != None:
+                columnStringLen = int(dfStringLen[0][0] * 1.5)
+            else:
+                columnStringLen = row[2]
+            dataType = row[1]
+            precision = row[3]
+            scale = row[4]
 
-    if index == dfMaxValue:
-        if dataType not in listOfUsedDataTypes:
-            listOfUsedDataTypes.append(dataType)
-            createDummyTable = createDummyTable + f'Dummy{dataType} {dataType} null'
+        #print(f"""
+        #    Table: {table},
+        #    Index: {index},
+        #    dfMaxValue: {dfMaxValue},
+        #    dataType: {dataType},
+        #    listOfUsedDataTypes: {listOfUsedDataTypes},
+        #    columnStringLen: {columnStringLen},
+        #    dataType: {dataType},
+        #    columnName: {row[0]},
+        #    ViewLast10Char: '{createDummyView[-11:]}'
+        #""")
 
-        if str(f',{index},') in setOfTrueFalseToBit:
-            createViewQuery = createViewQuery + f'\n{convertTrueFalseToBit(row[0],maxDataLen)}\n'
-        elif str(f',{index},') in setOfDateTimes:
-            createViewQuery = createViewQuery + f'\n{convertDateTime(row[0],dummyTableName,maxDataLen)}\n'
-        elif str(f',{index},') in setOfDates:
-            createViewQuery = createViewQuery + f'\n{convertDate(row[0],dummyTableName,maxDataLen)}\n'
+        if index == dfMaxValue:
+            if dataType not in listOfUsedDataTypes:
+                listOfUsedDataTypes.append(dataType)
+            createViewQuery = createViewQuery + f'{standardColumn(row[0],dataType,dummyView,maxColLen,maxDataLen,columnStringLen,precision,scale)}\n'
         else:
-            createViewQuery = createViewQuery + f'{standardColumn(row[0],dataType,dummyTableName,maxColLen,maxDataLen,columnStringLen,precision,scale)}\n'
-    else:
-        if dataType not in listOfUsedDataTypes:
-            listOfUsedDataTypes.append(dataType)
-            createDummyTable = createDummyTable + f'Dummy{dataType} {dataType} null,'
+            if dataType not in listOfUsedDataTypes:
+                listOfUsedDataTypes.append(dataType)
+            createViewQuery = createViewQuery + f'{standardColumn(row[0],dataType,dummyView,maxColLen,maxDataLen,columnStringLen,precision,scale)},'
 
-        if str(f',{index},') in setOfTrueFalseToBit:
-            createViewQuery = createViewQuery + f'{convertTrueFalseToBit(row[0],maxDataLen)},'
-        elif str(f',{index},') in setOfDateTimes:
-            createViewQuery = createViewQuery + f'\n{convertDateTime(row[0],dummyTableName,maxDataLen)},'
-        elif str(f',{index},') in setOfDates:
-            createViewQuery = createViewQuery + f'\n{convertDate(row[0],dummyTableName,maxDataLen)},'
+    amountOfDataType = len(listOfUsedDataTypes)
+    k = 1
+
+    createDummyView =f"""
+        CREATE OR ALTER VIEW {dummyView} AS
+        (
+            SELECT
+        """
+    for viewDataType in listOfUsedDataTypes:
+        if k == amountOfDataType:
+            createDummyView = createDummyView + f"Dummy{viewDataType} =  CAST('{viewDataType}' as {viewDataType}))"
         else:
-            createViewQuery = createViewQuery + f'{standardColumn(row[0],dataType,dummyTableName,maxColLen,maxDataLen,columnStringLen,precision,scale)},'
+            k = k + 1
+            createDummyView = createDummyView + f"Dummy{viewDataType} =  CAST('{viewDataType}' as {viewDataType}),\n"
 
-createDummyTable = createDummyTable + ')'
-createViewQuery = createViewQuery + f'FROM {fullTableName})'
-#print(f'''The following dummy table was temporarily has now been created: {createDummyTable}''')
-print(f'''
-The following view has now been created:
-{createViewQuery}
-''')
-SQL_Server.executeCustomQuery(f"DROP TABLE IF EXISTS {dummyTableName}")
-SQL_Server.executeCustomQuery(createDummyTable)
-SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.v{tableName}")
-SQL_Server.executeCustomQuery(createViewQuery)
-SQL_Server.executeCustomQuery(f"DROP TABLE {dummyTableName}")
+    createViewQuery = createViewQuery + f'FROM {sourceSchema}.{table})'
+
+
+    SQL_Server.executeCustomQuery(f'DROP VIEW IF EXISTS {sourceSchema}.vDummyValues')
+    SQL_Server.executeCustomQuery(createDummyView)
+    SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.v{table}")
+    SQL_Server.executeCustomQuery(createViewQuery)
+
+    print(f'Done creating view for {targetSchema}.{table}. ')
