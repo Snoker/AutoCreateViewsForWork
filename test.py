@@ -265,25 +265,99 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
             """
             response = SQL_Server.executeCustomSelect(query)
             dfStringLen = pd.DataFrame(response)
+            print(f'Strin len DF for {row[0]} in {sourceSchema}.{table}:\n {dfStringLen}\n Query for this column was: \n {query}')
             if dfStringLen["StringLen"][0] != None:
-                columnStringLen = int(dfStringLen["StringLen"][0] +1 * 1.5)
+                #Check for DateTime
+                query = f"""
+                        SELECT
+                        [ColumnIsDateTime] = IIF(LookForDates.[AmountOfDates] = AmountOfRowsInTable.[AmountOfRows],'True','False')
+                        FROM
+                        (
+                            SELECT
+                                COUNT(*) as 'AmountOfDates'
+                                FROM 
+                                (
+                                select
+                                [IfDateTime] = 
+                                    CASE WHEN 
+                                            (LEN(TRIM([{row[0]}])) = 23 OR LEN(TRIM([{row[0]}])) = 19) AND 
+                                            CHARINDEX('-',TRIM([{row[0]}])) = 5 AND
+                                            CHARINDEX( '-', TRIM([{row[0]}]), CHARINDEX('-',TRIM([{row[0]}])) + 1 ) = 8 AND
+                                            CHARINDEX(':',TRIM([{row[0]}])) = 14 AND
+                                            CHARINDEX( ':', TRIM([{row[0]}]), CHARINDEX(':',TRIM([{row[0]}])) + 1 ) =  17
+                                        THEN 1
+                                        ELSE 0
+                                        END
+                                    FROM {sourceSchema}.{table}
+                                ) CheckForDate
+                                WHERE CheckForDate.[IfDateTime] = 1
+                            ) LookForDates        
+                            LEFT JOIN
+                            (
+                        SELECT COUNT(*) as 'AmountofRows' FROM {sourceSchema}.{table}
+                            ) AmountOfRowsInTable ON 1 = 1
+                """
+                response = SQL_Server.executeCustomSelect(query)
+                dfCheckDateTime = pd.DataFrame(response)
+                print(f'Datetime check DF for {row[0]} in {sourceSchema}.{table}:\n {dfCheckDateTime}\n Query for this column was: \n {query}')
+                if dfCheckDateTime["ColumnIsDateTime"][0] == 'True':
+                    dataType = 'datetime'
+                else:
+                    #Check for Date.
+                    query = f"""
+                            SELECT
+                                [ColumnIsDate] = IIF(LookForDates.[AmountOfDates] = AmountOfRowsInTable.[AmountOfRows],'True','False')
+                                FROM
+                                (
+                                    SELECT
+                                        COUNT(*) as 'AmountOfDates'
+                                        FROM 
+                                        (
+                                        select
+                                        [IfDate] = 
+                                            CASE WHEN 
+                                                    LEN(TRIM([{row[0]}])) = 10 AND 
+                                                    CHARINDEX('-',TRIM([{row[0]}])) = 5 AND
+                                                    CHARINDEX( '-', TRIM([{row[0]}]), CHARINDEX('-',TRIM([{row[0]}])) + 1 ) = 8
+                                                THEN 1
+                                                ELSE 0
+                                                END
+                                            FROM {sourceSchema}.{table}
+                                        ) CheckForDate
+                                        WHERE CheckForDate.[IfDate] = 1
+                                    ) LookForDates
+                                    
+                                    LEFT JOIN
+                                    (
+                                SELECT COUNT(*) as 'AmountofRows' FROM {sourceSchema}.{table}
+                                    ) AmountOfRowsInTable ON 1 = 1
+                    """
+                    response = SQL_Server.executeCustomSelect(query)
+                    dfCheckDate = pd.DataFrame(response)
+                    print(f'Date check DF for {row[0]} in {sourceSchema}.{table}:\n {dfCheckDate}\n Query for this column was: \n {query}')
+                    if dfCheckDate["ColumnIsDate"][0] == 'True':
+                        dataType = 'date'
+                    else:
+                        columnStringLen = int(dfStringLen["StringLen"][0] + 1 * 1.5)
+                        dataType = 'nvarchar'
             else:
                 columnStringLen = row[2]
-            dataType = row[1]
-            precision = row[3]
-            scale = row[4]
+                dataType = row[1]
+                precision = row[3]
+                scale = row[4]
 
-        #print(f"""
-        #    Table: {table},
-        #    Index: {index},
-        #    dfMaxValue: {dfMaxValue},
-        #    dataType: {dataType},
-        #    listOfUsedDataTypes: {listOfUsedDataTypes},
-        #    columnStringLen: {columnStringLen},
-        #    dataType: {dataType},
-        #    columnName: {row[0]},
-        #    ViewLast10Char: '{createDummyView[-11:]}'
-        #""")
+        print(f"""
+           Table: {table},
+           Index: {index},
+           dfMaxValue: {dfMaxValue},
+           dataType: {dataType},
+           listOfUsedDataTypes: {listOfUsedDataTypes},
+           columnStringLen: {columnStringLen},
+           dataType: {dataType},
+           columnName: {row[0]}
+        """)
+        
+           #ViewLast10Char: '{createDummyView[-11:]}'
 
         if index == dfMaxValue:
             if dataType not in listOfUsedDataTypes:
