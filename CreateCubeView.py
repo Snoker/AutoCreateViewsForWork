@@ -9,9 +9,9 @@ import re
 #
 #####################################################################
 
-fullTableName = 'DMARN.FactForecast'
+fullTableName = 'DMRUFS.FactDeviation'
 #fullTableName = input('Please provide the source table name in the follwing format: schema.tableName (mirror.account): ')
-targetSchema = 'CubeARN'
+targetSchema = 'CubeRUFS'
 #targetSchema = input('Please provide the target schema that the view is to be created in (it must exist in the DB): ')
 driver='SQL Server Native Client 11.0'
 server='localhost'

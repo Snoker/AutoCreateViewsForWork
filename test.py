@@ -7,6 +7,7 @@ import SQLAlchClass
 #       Set initial variables. This must be done else the script can not run.
 #
 #####################################################################
+database = input('Please provide the database name: ')
 sourceSchema = input('Please provide the source schema. ( Not including brackets ): ')
 targetSchema = input('Please provide the target schema. ( Not including brackets ): ')
 driver='SQL Server Native Client 11.0'
@@ -14,7 +15,7 @@ server='localhost'
 #instance='mssqlserver01'
 uid='sqluser'
 pwd='sqluser'
-database='HampusTestZone'
+#database='HampusLek'
 
 
 #####################################################################
@@ -108,6 +109,7 @@ def convertDate(columnName,dummyView,maxDataLen):
 #DB object.
 SQL_Server = SQLAlchClass.SQLServer(driver,server,uid,pwd,database)
 
+
 #"Global" variables
 dummyView = f'{sourceSchema}.vDummyValues'
 listOfUsedDataTypes = []
@@ -193,7 +195,7 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
     columnStringLen = 0
 
     for index ,row in df.iterrows():
-
+        print(row)
         query =f"""
             SELECT
             	CASE
@@ -204,6 +206,8 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
             				ISNUMERIC([{row[0]}])
             			from
             				{sourceSchema}.{table}
+                        WHERE
+                            [{row[0]}] IS NOT NULL
             		)
             	THEN
             		'False'
@@ -213,7 +217,8 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
         """
         response = SQL_Server.executeCustomSelect(query)
         dfNumeric = pd.DataFrame(response)
-        if dfNumeric[0][0] == 'True':
+        print(f'Numeric check DF for {row[0]} in {sourceSchema}.{table}:\n {dfNumeric}\n Query for this column was: \n {query}')
+        if dfNumeric["NumericCheck"][0] == 'True':
             query = f"""
             	SELECT
             		COUNT(*) as 'AmountOfDecimalRows'
@@ -233,7 +238,7 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
             """
             response = SQL_Server.executeCustomSelect(query)
             dfDecimal = pd.DataFrame(response)
-            if dfDecimal[0][0] > 0:
+            if dfDecimal["AmountOfDecimalRows"][0] > 0:
                 dataType = 'decimal'
                 precision = 9
                 scale = 2
@@ -247,7 +252,7 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
                 """
                 response = SQL_Server.executeCustomSelect(query)
                 dfBool = pd.DataFrame(response)
-                if dfBool[0][0] == 0:
+                if dfBool["AmountOfNot0Or1Rows"][0] == 0:
                     dataType = 'bit'
                 else:
                     dataType = 'int'
@@ -260,8 +265,8 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
             """
             response = SQL_Server.executeCustomSelect(query)
             dfStringLen = pd.DataFrame(response)
-            if dfStringLen[0][0] != None:
-                columnStringLen = int(dfStringLen[0][0] * 1.5)
+            if dfStringLen["StringLen"][0] != None:
+                columnStringLen = int(dfStringLen["StringLen"][0] +1 * 1.5)
             else:
                 columnStringLen = row[2]
             dataType = row[1]
@@ -306,6 +311,7 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
 
     createViewQuery = createViewQuery + f'FROM {sourceSchema}.{table})'
 
+    print(f"The following query has been written to the database: {createViewQuery}")
 
     SQL_Server.executeCustomQuery(f'DROP VIEW IF EXISTS {sourceSchema}.vDummyValues')
     SQL_Server.executeCustomQuery(createDummyView)
