@@ -53,29 +53,37 @@ def standardColumn(columnName,dataType,dummyView,maxStringLen,maxDataLen,colStri
     #Building the first section of the case statement, isnull part before subselect
     InitialPartCaseStatement = columnName
     if dataType == 'nvarchar':
-        InitialPartCaseStatement = 'CASE WHEN TRIM(' + InitialPartCaseStatement + ') IS NULL THEN'
+        InitialPartCaseStatement = f" ISNULL( NULLIF( TRIM( {InitialPartCaseStatement} ), '') "
     else:
-        InitialPartCaseStatement = 'CASE WHEN ' + InitialPartCaseStatement + ' IS NULL THEN      '
-    InitialPartCaseStatement = addSpacingEnd(InitialPartCaseStatement,'',maxStringLen)
+        InitialPartCaseStatement = f" ISNULL( {InitialPartCaseStatement}  "
+    #InitialPartCaseStatement = addSpacingEnd(InitialPartCaseStatement,'',maxStringLen)
 
     #Building the subselect section of the query.
-    subSelect = f'(SELECT Dummy{dataType} FROM {dummyView})'
-    subSelect = addSpacingEnd(subSelect,dataType,maxDataLen)
+    subSelect = f'(SELECT Dummy{dataType} FROM {dummyView}))'
+    #subSelect = addSpacingEnd(subSelect,dataType,maxDataLen)
 
     #Building the else section of the query.
     if dataType == 'nvarchar':
-        elseSection = f'ELSE TRIM({columnName})'
+        elseSection = f'ELSE {columnName}'
     else:
         elseSection = f'ELSE {columnName}      '
-    elseSection = addSpacingEnd(elseSection,'',maxStringLen)
+    #elseSection = addSpacingEnd(elseSection,'',maxStringLen)
+
+    # #Return final query string
+    # if dataType == 'nvarchar':
+    #     finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement} {subSelect} {elseSection} END as {dataType}({colStringLen}))"
+    # elif dataType == 'decimal':
+    #     finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement} {subSelect} {elseSection} END as {dataType}({colPrecision},{colScale}))"
+    # else:
+    #     finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement} {subSelect} {elseSection} END as {dataType})"
 
     #Return final query string
     if dataType == 'nvarchar':
-        finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement} {subSelect} {elseSection} END as {dataType}({colStringLen}))"
+        finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement}, {subSelect} as {dataType}({colStringLen}))"
     elif dataType == 'decimal':
-        finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement} {subSelect} {elseSection} END as {dataType}({colPrecision},{colScale}))"
+        finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement}, {subSelect} as {dataType}({colPrecision},{colScale}))"
     else:
-        finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement} {subSelect} {elseSection} END as {dataType})"
+        finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement}, {subSelect} as {dataType})"
 
     #print(finalstring)
     return finalstring
@@ -152,7 +160,7 @@ df_SchemaTables = pd.DataFrame(response)
 for outerIndex,schemaRow in df_SchemaTables.iterrows():
 
     table = schemaRow[0]
-    print(f'Creating view for {targetSchema}.{table}. ')
+    #print(f'Creating view for {targetSchema}.{table}. ')
 
     columnInformation =f"""
         select
@@ -170,10 +178,16 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
     response = SQL_Server.executeCustomSelect(columnInformation)
     df = pd.DataFrame(response)
 
-    createViewQuery = f"""
-    CREATE VIEW {targetSchema}.v{table} AS (
-        SELECT
-    """
+    if table[-1] == "s":
+        createViewQuery = f"""
+        CREATE VIEW {targetSchema}.v{table[0:len(table)-1]} AS (
+            SELECT
+        """
+    else:
+         createViewQuery = f"""
+        CREATE VIEW {targetSchema}.v{table} AS (
+            SELECT
+        """       
 
 
     dfMaxValue = len(df.index) -1
@@ -195,167 +209,168 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
     columnStringLen = 0
 
     for index ,row in df.iterrows():
-        print(row)
-        query =f"""
-            SELECT
-            	CASE
-            	WHEN
-            		0 IN
-            		(
-            			select
-            				ISNUMERIC([{row[0]}])
-            			from
-            				{sourceSchema}.{table}
-                        WHERE
-                            [{row[0]}] IS NOT NULL
-            		)
-            	THEN
-            		'False'
-            	ELSE
-            		'True'
-            	END as 'NumericCheck'
-        """
-        response = SQL_Server.executeCustomSelect(query)
-        dfNumeric = pd.DataFrame(response)
-        print(f'Numeric check DF for {row[0]} in {sourceSchema}.{table}:\n {dfNumeric}\n Query for this column was: \n {query}')
-        if dfNumeric["NumericCheck"][0] == 'True':
-            query = f"""
-            	SELECT
-            		COUNT(*) as 'AmountOfDecimalRows'
-            	FROM
-            	(
-            		SELECT
-            			CharIndexCol
-            		FROM
-            		(
-            			SELECT
-            				CHARINDEX('.',REPLACE([{row[0]}],',','.')) as 'CharIndexCol'
-            			FROM
-            				{sourceSchema}.{table}
-            		) CheckForDecimals
-            			WHERE CheckForDecimals.CharIndexCol != 0
-            	) FilteredQuery
-            """
-            response = SQL_Server.executeCustomSelect(query)
-            dfDecimal = pd.DataFrame(response)
-            if dfDecimal["AmountOfDecimalRows"][0] > 0:
-                dataType = 'decimal'
-                precision = 9
-                scale = 2
-            else:
-                query = f"""
-                	SELECT
-                    	COUNT([{row[0]}]) as 'AmountOfNot0Or1Rows'
-                    FROM
-                    	{sourceSchema}.{table}
-                    WHERE [{row[0]}] NOT IN ('0','1')
-                """
-                response = SQL_Server.executeCustomSelect(query)
-                dfBool = pd.DataFrame(response)
-                if dfBool["AmountOfNot0Or1Rows"][0] == 0:
-                    dataType = 'bit'
-                else:
-                    dataType = 'int'
-        else:
-            query = f"""
+        if row[1] == "nvarchar":
+            query =f"""
                 SELECT
-                	MAX(LEN([{row[0]}])) as 'StringLen'
-                FROM
-                	{sourceSchema}.{table}
+                    CASE
+                    WHEN
+                        0 IN
+                        (
+                            select
+                                ISNUMERIC([{row[0]}])
+                            from
+                                {sourceSchema}.{table}
+                            WHERE
+                                [{row[0]}] IS NOT NULL
+                        )
+                    THEN
+                        'False'
+                    ELSE
+                        'True'
+                    END as 'NumericCheck'
             """
             response = SQL_Server.executeCustomSelect(query)
-            dfStringLen = pd.DataFrame(response)
-            print(f'Strin len DF for {row[0]} in {sourceSchema}.{table}:\n {dfStringLen}\n Query for this column was: \n {query}')
-            if dfStringLen["StringLen"][0] != None:
-                #Check for DateTime
+            dfNumeric = pd.DataFrame(response)
+            #print(f'Numeric check DF for {row[0]} in {sourceSchema}.{table}:\n {dfNumeric}\n Query for this column was: \n {query}')
+            if dfNumeric["NumericCheck"][0] == 'True':
                 query = f"""
+                    SELECT
+                        COUNT(*) as 'AmountOfDecimalRows'
+                    FROM
+                    (
                         SELECT
-                        [ColumnIsDateTime] = IIF(LookForDates.[AmountOfDates] = AmountOfRowsInTable.[AmountOfRows],'True','False')
+                            CharIndexCol
                         FROM
                         (
                             SELECT
-                                COUNT(*) as 'AmountOfDates'
-                                FROM 
-                                (
-                                select
-                                [IfDateTime] = 
-                                    CASE WHEN 
-                                            (LEN(TRIM([{row[0]}])) = 23 OR LEN(TRIM([{row[0]}])) = 19) AND 
-                                            CHARINDEX('-',TRIM([{row[0]}])) = 5 AND
-                                            CHARINDEX( '-', TRIM([{row[0]}]), CHARINDEX('-',TRIM([{row[0]}])) + 1 ) = 8 AND
-                                            CHARINDEX(':',TRIM([{row[0]}])) = 14 AND
-                                            CHARINDEX( ':', TRIM([{row[0]}]), CHARINDEX(':',TRIM([{row[0]}])) + 1 ) =  17
-                                        THEN 1
-                                        ELSE 0
-                                        END
-                                    FROM {sourceSchema}.{table}
-                                ) CheckForDate
-                                WHERE CheckForDate.[IfDateTime] = 1
-                            ) LookForDates        
-                            LEFT JOIN
-                            (
-                        SELECT COUNT(*) as 'AmountofRows' FROM {sourceSchema}.{table}
-                            ) AmountOfRowsInTable ON 1 = 1
+                                CHARINDEX('.',REPLACE([{row[0]}],',','.')) as 'CharIndexCol'
+                            FROM
+                                {sourceSchema}.{table}
+                        ) CheckForDecimals
+                            WHERE CheckForDecimals.CharIndexCol != 0
+                    ) FilteredQuery
                 """
                 response = SQL_Server.executeCustomSelect(query)
-                dfCheckDateTime = pd.DataFrame(response)
-                print(f'Datetime check DF for {row[0]} in {sourceSchema}.{table}:\n {dfCheckDateTime}\n Query for this column was: \n {query}')
-                if dfCheckDateTime["ColumnIsDateTime"][0] == 'True':
-                    dataType = 'datetime'
+                dfDecimal = pd.DataFrame(response)
+                if dfDecimal["AmountOfDecimalRows"][0] > 0:
+                    dataType = 'decimal'
+                    precision = 9
+                    scale = 2
                 else:
-                    #Check for Date.
                     query = f"""
-                            SELECT
-                                [ColumnIsDate] = IIF(LookForDates.[AmountOfDates] = AmountOfRowsInTable.[AmountOfRows],'True','False')
-                                FROM
-                                (
-                                    SELECT
-                                        COUNT(*) as 'AmountOfDates'
-                                        FROM 
-                                        (
-                                        select
-                                        [IfDate] = 
-                                            CASE WHEN 
-                                                    LEN(TRIM([{row[0]}])) = 10 AND 
-                                                    CHARINDEX('-',TRIM([{row[0]}])) = 5 AND
-                                                    CHARINDEX( '-', TRIM([{row[0]}]), CHARINDEX('-',TRIM([{row[0]}])) + 1 ) = 8
-                                                THEN 1
-                                                ELSE 0
-                                                END
-                                            FROM {sourceSchema}.{table}
-                                        ) CheckForDate
-                                        WHERE CheckForDate.[IfDate] = 1
-                                    ) LookForDates
-                                    
-                                    LEFT JOIN
-                                    (
-                                SELECT COUNT(*) as 'AmountofRows' FROM {sourceSchema}.{table}
-                                    ) AmountOfRowsInTable ON 1 = 1
+                        SELECT
+                            COUNT([{row[0]}]) as 'AmountOfNot0Or1Rows'
+                        FROM
+                            {sourceSchema}.{table}
+                        WHERE [{row[0]}] NOT IN ('0','1')
                     """
                     response = SQL_Server.executeCustomSelect(query)
-                    dfCheckDate = pd.DataFrame(response)
-                    print(f'Date check DF for {row[0]} in {sourceSchema}.{table}:\n {dfCheckDate}\n Query for this column was: \n {query}')
-                    if dfCheckDate["ColumnIsDate"][0] == 'True':
-                        dataType = 'date'
+                    dfBool = pd.DataFrame(response)
+                    if dfBool["AmountOfNot0Or1Rows"][0] == 0:
+                        dataType = 'bit'
                     else:
-                        columnStringLen = int(dfStringLen["StringLen"][0] + 1 * 1.5)
-                        dataType = 'nvarchar'
+                        dataType = 'int'
             else:
-                columnStringLen = row[2]
-                dataType = row[1]
-                precision = row[3]
-                scale = row[4]
+                
+                query = f"""
+                    SELECT
+                        MAX(LEN([{row[0]}])) as 'StringLen'
+                    FROM
+                        {sourceSchema}.{table}
+                """
+                response = SQL_Server.executeCustomSelect(query)
+                dfStringLen = pd.DataFrame(response)
+                #print(f'Strin len DF for {row[0]} in {sourceSchema}.{table}:\n {dfStringLen}\n Query for this column was: \n {query}')
+                if dfStringLen["StringLen"][0] != None:
+                    #Check for DateTime
+                    query = f"""
+                            SELECT
+                            [ColumnIsDateTime] = IIF(LookForDates.[AmountOfDates] = AmountOfRowsInTable.[AmountOfRows],'True','False')
+                            FROM
+                            (
+                                SELECT
+                                    COUNT(*) as 'AmountOfDates'
+                                    FROM 
+                                    (
+                                    select
+                                    [IfDateTime] = 
+                                        CASE WHEN 
+                                                (LEN(TRIM([{row[0]}])) = 23 OR LEN(TRIM([{row[0]}])) = 19) AND 
+                                                CHARINDEX('-',TRIM([{row[0]}])) = 5 AND
+                                                CHARINDEX( '-', TRIM([{row[0]}]), CHARINDEX('-',TRIM([{row[0]}])) + 1 ) = 8 AND
+                                                CHARINDEX(':',TRIM([{row[0]}])) = 14 AND
+                                                CHARINDEX( ':', TRIM([{row[0]}]), CHARINDEX(':',TRIM([{row[0]}])) + 1 ) =  17
+                                            THEN 1
+                                            ELSE 0
+                                            END
+                                        FROM {sourceSchema}.{table}
+                                    ) CheckForDate
+                                    WHERE CheckForDate.[IfDateTime] = 1
+                                ) LookForDates        
+                                LEFT JOIN
+                                (
+                            SELECT COUNT(*) as 'AmountofRows' FROM {sourceSchema}.{table}
+                                ) AmountOfRowsInTable ON 1 = 1
+                    """
+                    response = SQL_Server.executeCustomSelect(query)
+                    dfCheckDateTime = pd.DataFrame(response)
+                    #print(f'Datetime check DF for {row[0]} in {sourceSchema}.{table}:\n {dfCheckDateTime}\n Query for this column was: \n {query}')
+                    if dfCheckDateTime["ColumnIsDateTime"][0] == 'True':
+                        dataType = 'datetime'
+                    else:
+                        #Check for Date.
+                        query = f"""
+                                SELECT
+                                    [ColumnIsDate] = IIF(LookForDates.[AmountOfDates] = AmountOfRowsInTable.[AmountOfRows],'True','False')
+                                    FROM
+                                    (
+                                        SELECT
+                                            COUNT(*) as 'AmountOfDates'
+                                            FROM 
+                                            (
+                                            select
+                                            [IfDate] = 
+                                                CASE WHEN 
+                                                        LEN(TRIM([{row[0]}])) = 10 AND 
+                                                        CHARINDEX('-',TRIM([{row[0]}])) = 5 AND
+                                                        CHARINDEX( '-', TRIM([{row[0]}]), CHARINDEX('-',TRIM([{row[0]}])) + 1 ) = 8
+                                                    THEN 1
+                                                    ELSE 0
+                                                    END
+                                                FROM {sourceSchema}.{table}
+                                            ) CheckForDate
+                                            WHERE CheckForDate.[IfDate] = 1
+                                        ) LookForDates
+                                        
+                                        LEFT JOIN
+                                        (
+                                    SELECT COUNT(*) as 'AmountofRows' FROM {sourceSchema}.{table}
+                                        ) AmountOfRowsInTable ON 1 = 1
+                        """
+                        response = SQL_Server.executeCustomSelect(query)
+                        dfCheckDate = pd.DataFrame(response)
+                        #print(f'Date check DF for {row[0]} in {sourceSchema}.{table}:\n {dfCheckDate}\n Query for this column was: \n {query}')
+                        if dfCheckDate["ColumnIsDate"][0] == 'True':
+                            dataType = 'date'
+                        else:
+                            columnStringLen = int(dfStringLen["StringLen"][0] + 3 * 1.5)
+                            dataType = 'nvarchar'
+        else:
+            columnStringLen = row[2]
+            dataType = row[1]
+            precision = row[3]
+            scale = row[4]
 
-        print(f"""
-           Table: {table},
-           Index: {index},
-           dfMaxValue: {dfMaxValue},
-           dataType: {dataType},
-           listOfUsedDataTypes: {listOfUsedDataTypes},
-           columnStringLen: {columnStringLen},
-           dataType: {dataType},
-           columnName: {row[0]}
-        """)
+        # print(f"""
+        #    Table: {table},
+        #    Index: {index},
+        #    dfMaxValue: {dfMaxValue},
+        #    dataType: {dataType},
+        #    listOfUsedDataTypes: {listOfUsedDataTypes},
+        #    columnStringLen: {columnStringLen},
+        #    dataType: {dataType},
+        #    columnName: {row[0]}
+        # """)
         
            #ViewLast10Char: '{createDummyView[-11:]}'
 
@@ -385,11 +400,11 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
 
     createViewQuery = createViewQuery + f'FROM {sourceSchema}.{table})'
 
-    print(f"The following query has been written to the database: {createViewQuery}")
+    #print(f"The following query has been written to the database: {createViewQuery}")
 
     SQL_Server.executeCustomQuery(f'DROP VIEW IF EXISTS {sourceSchema}.vDummyValues')
     SQL_Server.executeCustomQuery(createDummyView)
     SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.v{table}")
     SQL_Server.executeCustomQuery(createViewQuery)
 
-    print(f'Done creating view for {targetSchema}.{table}. ')
+    #print(f'Done creating view for {targetSchema}.{table}. ')
