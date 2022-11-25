@@ -354,6 +354,8 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
                             dataType = 'date'
                         else:
                             columnStringLen = int(dfStringLen["StringLen"][0] + 3 * 1.5)
+                            if columnStringLen >= 4000:
+                                columnStringLen = 4000
                             dataType = 'nvarchar'
         else:
             columnStringLen = row[2]
