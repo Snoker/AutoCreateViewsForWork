@@ -180,12 +180,12 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
 
     if table[-1] == "s":
         createViewQuery = f"""
-        CREATE VIEW {targetSchema}.v{table[0:len(table)-1]} AS (
+        CREATE VIEW {targetSchema}.[v{table[0:len(table)-1]}] AS (
             SELECT
         """
     else:
          createViewQuery = f"""
-        CREATE VIEW {targetSchema}.v{table} AS (
+        CREATE VIEW {targetSchema}.[v{table}] AS (
             SELECT
         """       
 
@@ -406,7 +406,7 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
 
     SQL_Server.executeCustomQuery(f'DROP VIEW IF EXISTS {sourceSchema}.vDummyValues')
     SQL_Server.executeCustomQuery(createDummyView)
-    SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.v{table}")
+    SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.[v{table}]")
     SQL_Server.executeCustomQuery(createViewQuery)
 
     #print(f'Done creating view for {targetSchema}.{table}. ')
