@@ -52,7 +52,7 @@ def standardColumn(columnName,dataType,dummyView,maxStringLen,maxDataLen,colStri
 
     #Building the first section of the case statement, isnull part before subselect
     InitialPartCaseStatement = columnName
-    if dataType == 'nvarchar':
+    if dataType == 'nvarchar' or dataType == 'varchar':
         InitialPartCaseStatement = f" ISNULL( NULLIF( TRIM( {InitialPartCaseStatement} ), '') "
     else:
         InitialPartCaseStatement = f" ISNULL( {InitialPartCaseStatement}  "
@@ -63,7 +63,7 @@ def standardColumn(columnName,dataType,dummyView,maxStringLen,maxDataLen,colStri
     #subSelect = addSpacingEnd(subSelect,dataType,maxDataLen)
 
     #Building the else section of the query.
-    if dataType == 'nvarchar':
+    if dataType == 'nvarchar' or dataType == 'varchar':
         elseSection = f'ELSE {columnName}'
     else:
         elseSection = f'ELSE {columnName}      '
@@ -78,7 +78,7 @@ def standardColumn(columnName,dataType,dummyView,maxStringLen,maxDataLen,colStri
     #     finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement} {subSelect} {elseSection} END as {dataType})"
 
     #Return final query string
-    if dataType == 'nvarchar':
+    if dataType == 'nvarchar' or dataType == 'varchar':
         finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement}, {subSelect} as {dataType}({colStringLen}))"
     elif dataType == 'decimal':
         finalstring = f"\n\t\t {firstColumnName} = CAST( {InitialPartCaseStatement}, {subSelect} as {dataType}({colPrecision},{colScale}))"
@@ -220,7 +220,7 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
     columnStringLen = 0
 
     for index ,row in df.iterrows():
-        if row[1] == "nvarchar":
+        if row[1] == "nvarchar" or row[1] == "varchar":
             query =f"""
                 SELECT
                     CASE
