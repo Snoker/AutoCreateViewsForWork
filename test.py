@@ -134,7 +134,10 @@ dataTypeDefaultValues = {
     "text": "n/a",
     "nvarchar": "n/a",
     "ntext": "n/a",
-    "binary": 0
+    "binary": 0,
+    "image": "n/a",
+    "timestamp": 0,
+    "tinyint": 0
 }
 
 dummyView = f'{sourceSchema}.vDummyValues'
