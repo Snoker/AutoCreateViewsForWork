@@ -157,11 +157,20 @@ WHERE s.name = '{sourceSchema}'
 response = SQL_Server.executeCustomSelect(schemaInformation)
 df_SchemaTables = pd.DataFrame(response)
 
+
+
 for outerIndex,schemaRow in df_SchemaTables.iterrows():
 
-    table = schemaRow[0]
-    #print(f'Creating view for {targetSchema}.{table}. ')
+    #print('entering itterator')
 
+    table = schemaRow[0]
+    #print(table)
+    #print(f'Creating view for {targetSchema}.{table}. ')
+    tableViewName = table.replace('-','')
+    tableViewName = tableViewName.replace(' ','')
+    tableViewName = tableViewName.replace('_','')
+    tableViewName = tableViewName.replace('$','')
+    tableViewName = f'v{tableViewName}'
     columnInformation =f"""
         select
         	c.name,typ.name,c.max_length/2 as StringLen, c.precision, c.scale
@@ -175,21 +184,23 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
         WHERE s.name + '.' + t.name= '{sourceSchema}.{table}'
         AND typ.name != 'sysname'
     """
+    #print(columnInformation)
     response = SQL_Server.executeCustomSelect(columnInformation)
     df = pd.DataFrame(response)
 
     if table[-1] == "s":
         createViewQuery = f"""
-        CREATE VIEW {targetSchema}.[v{table[0:len(table)-1]}] AS (
+        CREATE VIEW {targetSchema}.{tableViewName[0:len(tableViewName)-1]} AS (
             SELECT
         """
     else:
          createViewQuery = f"""
-        CREATE VIEW {targetSchema}.[v{table}] AS (
+        CREATE VIEW {targetSchema}.{tableViewName} AS (
             SELECT
         """       
 
-
+    table = f'[{table}]'
+    #print(table)
     dfMaxValue = len(df.index) -1
 
     maxColLen = 0
@@ -406,7 +417,7 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
 
     SQL_Server.executeCustomQuery(f'DROP VIEW IF EXISTS {sourceSchema}.vDummyValues')
     SQL_Server.executeCustomQuery(createDummyView)
-    SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.[v{table}]")
+    SQL_Server.executeCustomQuery(f"DROP VIEW IF EXISTS {targetSchema}.{tableViewName}")
     SQL_Server.executeCustomQuery(createViewQuery)
 
     #print(f'Done creating view for {targetSchema}.{table}. ')
