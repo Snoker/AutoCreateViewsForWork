@@ -119,6 +119,24 @@ SQL_Server = SQLAlchClass.SQLServer(driver,server,uid,pwd,database)
 
 
 #"Global" variables
+
+dataTypeDefaultValues = {
+    "bigint": 0,
+    "bit": 0,
+    "decimal": 0.0,
+    "int": -1,
+    "money": 0,
+    "float": 0.0,
+    "date": "1900-01-01",
+    "datetime2": "1900-01-01 00:00:00",
+    "datetime": "1900-01-01 00:00:00",
+    "varchar": 'n/a',
+    "text": "n/a",
+    "nvarchar": "n/a",
+    "ntext": "n/a",
+    "binary": 0
+}
+
 dummyView = f'{sourceSchema}.vDummyValues'
 listOfUsedDataTypes = []
 
@@ -161,9 +179,10 @@ df_SchemaTables = pd.DataFrame(response)
 
 for outerIndex,schemaRow in df_SchemaTables.iterrows():
 
-    #print('entering itterator')
+    
 
     table = schemaRow[0]
+    print(f'entering itterator {table}')
     #print(table)
     #print(f'Creating view for {targetSchema}.{table}. ')
     tableViewName = table.replace('-','')
@@ -406,10 +425,10 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
         """
     for viewDataType in listOfUsedDataTypes:
         if k == amountOfDataType:
-            createDummyView = createDummyView + f"Dummy{viewDataType} =  CAST('{viewDataType}' as {viewDataType}))"
+            createDummyView = createDummyView + f"Dummy{viewDataType} =  CAST('{dataTypeDefaultValues[viewDataType]}' as {viewDataType}))"
         else:
             k = k + 1
-            createDummyView = createDummyView + f"Dummy{viewDataType} =  CAST('{viewDataType}' as {viewDataType}),\n"
+            createDummyView = createDummyView + f"Dummy{viewDataType} =  CAST('{dataTypeDefaultValues[viewDataType]}' as {viewDataType}),\n"
 
     createViewQuery = createViewQuery + f'FROM {sourceSchema}.{table})'
 
