@@ -1,6 +1,7 @@
 
 import pandas as pd
 import SQLAlchClass
+import re
 
 #####################################################################
 #
@@ -20,13 +21,13 @@ pwd='sqluser'
 
 #####################################################################
 #
-#      DO NOT ALTER THE CODE BELOW THIS CODE BLOCK.
+#      DO NOT ALTER THE CODE BELOW THIS COMMENT BLOCK.
 #
 #####################################################################
 
 def addSpacingEnd(fullString,stringShortener,maxLen):
     i = 0
-    finalString = fullString
+    finalString = f'[{fullString}]'
     maxLen = maxLen - len(stringShortener)
     while i <= maxLen:
         finalString = finalString + ' '
@@ -35,7 +36,7 @@ def addSpacingEnd(fullString,stringShortener,maxLen):
 
 def addSpacingBeg(fullString,stringShortener,maxLen):
     i = 0
-    finalString = fullString
+    finalString = f'[{fullString}]'
     maxLen = maxLen - len(stringShortener)
     while i <= maxLen:
         finalString = ' ' + finalString
@@ -48,7 +49,7 @@ def standardColumn(columnName,dataType,dummyView,maxStringLen,maxDataLen,colStri
     columnName = f'[{columnName}]'
     firstColumnName = columnName
     maxStringLen = maxStringLen - len(columnName)
-    firstColumnName = addSpacingEnd(columnName,columnName,maxDataLen)
+    firstColumnName = addSpacingEnd(cleanString(columnName),columnName,maxDataLen)
 
     #Building the first section of the case statement, isnull part before subselect
     InitialPartCaseStatement = columnName
@@ -113,6 +114,9 @@ def convertDate(columnName,dummyView,maxDataLen):
     firstColumnName = addSpacingEnd(columnName,columnName,maxDataLen)
     finalString = f"{firstColumnName} = CAST( CASE WHEN TRIM([{columnName}]) IS NULL THEN (SELECT DummyDate FROM {dummyView}) ELSE {columnName} END as Date)"
     return(finalString)
+
+def cleanString(inputString):
+    return re.sub('[\W_]+',"",inputString)
 
 #DB object.
 SQL_Server = SQLAlchClass.SQLServer(driver,server,uid,pwd,database)
@@ -188,10 +192,11 @@ for outerIndex,schemaRow in df_SchemaTables.iterrows():
     print(f'entering itterator {table}')
     #print(table)
     #print(f'Creating view for {targetSchema}.{table}. ')
-    tableViewName = table.replace('-','')
-    tableViewName = tableViewName.replace(' ','')
-    tableViewName = tableViewName.replace('_','')
-    tableViewName = tableViewName.replace('$','')
+    tableViewName = cleanString(table)
+    # .replace('-','')
+    # tableViewName = tableViewName.replace(' ','')
+    # tableViewName = tableViewName.replace('_','')
+    # tableViewName = tableViewName.replace('$','')
     tableViewName = f'v{tableViewName}'
     columnInformation =f"""
         select
